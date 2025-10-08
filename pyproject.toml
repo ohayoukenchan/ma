@@ -1,0 +1,14 @@
+[project]
+name = "edge-skate"
+version = "0.1.0"
+description = "Prototype pipeline inspired by the Edge Skate README"
+authors = [{name = "EdgeSkate"}]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
