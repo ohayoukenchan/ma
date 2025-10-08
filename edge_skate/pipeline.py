@@ -21,6 +21,17 @@ class PipelineConfig:
     output_dir: Path = Path("output")
 
 
+@dataclass
+class SessionArtifacts:
+    """Intermediate results for a single pipeline run."""
+
+    processed_frame: List[List[float]]
+    edge_map: List[List[float]]
+    course: course_generation.Course
+    simulation: physics.SimulationResult
+    overlay: str
+
+
 class EdgeSkatePipeline:
     """Glues all pipeline steps together to mirror the README flow."""
 
@@ -30,6 +41,30 @@ class EdgeSkatePipeline:
 
     def run(self, source: Path, *, export_name: str = "session") -> Path:
         """Execute the full pipeline for a given media source."""
+
+        artifacts = self.create_session(source)
+        export_path = export.export_session(
+            export.DirectoryWriter(self.config.output_dir),
+            export_name,
+            artifacts.processed_frame,
+            artifacts.edge_map,
+            artifacts.course,
+            artifacts.simulation,
+            artifacts.overlay,
+        )
+        return export_path
+
+    def batch_run(self, sources: Iterable[Path]) -> List[Path]:
+        """Run the pipeline for multiple sources, returning output paths."""
+
+        results: List[Path] = []
+        for idx, source in enumerate(sources):
+            name = f"session_{idx:02d}"
+            results.append(self.run(source, export_name=name))
+        return results
+
+    def create_session(self, source: Path) -> SessionArtifacts:
+        """Return in-memory artifacts for a media source without exporting."""
 
         frame = media.MediaLoader().load_frame(source)
         processed = preprocessing.preprocess_frame(
@@ -45,22 +80,10 @@ class EdgeSkatePipeline:
             trick_interval=self.config.trick_interval,
         )
         overlay = rendering.render_overlay(processed, simulation.path)
-        export_path = export.export_session(
-            export.DirectoryWriter(self.config.output_dir),
-            export_name,
-            processed,
-            edges,
-            course,
-            simulation,
-            overlay,
+        return SessionArtifacts(
+            processed_frame=processed,
+            edge_map=edges,
+            course=course,
+            simulation=simulation,
+            overlay=overlay,
         )
-        return export_path
-
-    def batch_run(self, sources: Iterable[Path]) -> List[Path]:
-        """Run the pipeline for multiple sources, returning output paths."""
-
-        results: List[Path] = []
-        for idx, source in enumerate(sources):
-            name = f"session_{idx:02d}"
-            results.append(self.run(source, export_name=name))
-        return results
